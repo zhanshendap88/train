@@ -1,0 +1,143 @@
+import re
+import requests
+import csv
+import pandas as pd
+import time
+import random
+
+class Pacong(object):
+    def __init__(self):
+        self.headers = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36"}
+        self.names=["书名","作者","出版社","出品方","出版年","页数",
+                     "定价","装帧","ISBN","丛书","译者","原作名",
+                     "豆瓣评分","5星","4星","3星","2星","1星","评价人数",
+                     "内容简介","作者简介","网站链接"]
+        self.bookurl=[]
+        self.start = time.perf_counter()
+    
+    def web_jindu(self,n,url_time):        
+        now = (n/20) + 1
+        rate = (now/50)*100
+        bili = 0.9 * rate
+        rate_bili = int(bili)
+        least = (90-rate_bili)
+        dur = time.perf_counter()-url_time
+        dur_1 = dur/now
+        yugu =  (50-now) * dur_1
+        print("\r页面解析进度{}{}% [{}{}]{:.2f}s{}解析进程：{}/50页{}当前进度：{}%{}解析累计时间：{:.2f}s{}平均单个耗时：{:.2f}s{}预计时间：{:.2f}s"
+              .format(200*" ",int(rate),rate_bili*">",least*".",dur,200*" ",int(now),200*" ",int(rate),200*" ",dur,200*" ",dur_1,200*" ",yugu),end = "")
+        time.sleep(0.5)
+
+    def book_jindu(self,n,info_time):        
+        now = n
+        rate = (now/1000)*100
+        bili = 0.9 * rate
+        rate_bili = int(bili)
+        least = (90-rate_bili)
+        dur = time.perf_counter()-info_time
+        dur_1 = dur/now
+        dur_2 = int(dur/60)
+        dur_3 = int(dur - (dur_2 * 60))
+        yugu =  (1000-now) * dur_1
+        yugu_1 = int(yugu/60)
+        yugu_2 = int(yugu - (yugu_1 * 60))
+        print("\r书单信息爬取进度{}{:.2f}% [{}{}]{}min{}s{}爬取进程：{}/1000个{}当前进度：{:.2f}%{}累计时间：{}min{}s{}平均单个耗时：{:.2f}s{}预计时间：{}min{}s"
+              .format(200*" ",rate,rate_bili*">",least*".",dur_2,dur_3,200*" ",now,200*" ",rate,200*" ",dur_2,dur_3,200*" ",dur_1,200*" ",yugu_1,yugu_2),end = "")
+        time.sleep(0.5)    
+        
+    def get_url(self):
+        
+        print("\n------------页面解析开始------------\n")        
+        url_time = time.perf_counter()
+        for i in range(7):
+            print("\r加载中：{}".format(i*". "),end="") 
+            
+        
+        for n in range(0,981,20):
+            N =str(n)
+            url = "https://book.douban.com/tag/%E5%B0%8F%E8%AF%B4?start=" + N + "&type=T"
+            book_douban = requests.get(url = url,headers = self.headers).text
+            pattern_url = '<a href="(https://book.douban.com/subject/\d+/)"\s*?title="(.*?)"'
+            self.bookurl += re.compile(pattern_url,re.S).findall(book_douban)            
+            time.sleep(random.uniform(1,2))
+            self.web_jindu(n,url_time)
+                        
+        book_url = self.bookurl
+        print("\n------------页面解析完成------------\n")
+        return book_url
+    
+    def book_info(self,book_url):
+        print("\n---------小说书单信息爬取开始---------\n") 
+        info_time = time.perf_counter()
+        real_shudan = []
+        
+        for i in book_url:
+            shudan = []
+            shudan.append(i[1])
+            url_text = requests.get(i[0],headers=self.headers)
+            bookurl_text = url_text.text.strip()
+            patterns = ['<span class="pl">\s*?作者.*?</span>.*?>(.*?)</a>',#可能需要处理一些空格问题
+                        '<span class="pl">\s*?出版社.*?</span>\s*?(.*?)<br/>',
+                        '<span class="pl">\s*?出品方.*?</span>.*?>(.*?)<',
+                        '<span class="pl">\s*?出版年.*?</span>\s*?(.*?)<br/>',
+                        '<span class="pl">\s*?页数.*?</span>\s*?(.*?)<br/>',
+                        '<span class="pl">\s*?定价.*?</span>\s*?(.*?)<br/>',
+                        '<span class="pl">\s*?装帧.*?</span>\s*?(.*?)<br/>',
+                        '<span class="pl">\s*?ISBN.*?</span>\s*?(.*?)<br/>',
+                        '<span class="pl">\s*?丛书.*?</span>.*?>(.*?)<',
+                        '<span class="pl">\s*?译者.*?</span>.*?>(.*?)<',
+                        '<span class="pl">\s*?原作名.*?</span>\s*?(.*?)<br/>',
+                        '>豆瓣评分<.*?property="v:average">\s*?(.*?)\s*?</strong>',#评分需要数据处理左边空格
+                        '5星.*?<span class="rating_per">(.*?)</span>',
+                        '4星.*?<span class="rating_per">(.*?)</span>',
+                        '3星.*?<span class="rating_per">(.*?)</span>',
+                        '2星.*?<span class="rating_per">(.*?)</span>',
+                        '1星.*?<span class="rating_per">(.*?)</span>',
+                        '>(\d+)</span>人评价</a>']
+            pattern_description= ['>内容简介<.*?<div class="intro">(.*?)</p></div>',
+                                  '>内容简介<.*?<div class="intro">.*?</p></div>.*?<div class="intro">(.*?)</p></div>.*?作者简介',
+                                  '>作者简介<.*?<div class="intro">(.*?)</p></div>',
+                                  '>作者简介<.*?<div class="intro">.*?</p></div>.*?<div class="intro">(.*?)</p></div>']
+            
+            for pattern in patterns:
+                if not re.compile(pattern,re.S).search(bookurl_text):
+                    shudan.append("")
+                else:
+                    shudan.append(re.compile(pattern,re.S).search(bookurl_text).group(1).replace("\n",""))
+
+            for j in [0,2]:
+                if re.compile(pattern_description[j],re.S).findall(bookurl_text)==[]:
+                    shudan.append("")        
+                elif re.compile(pattern_description[j+1],re.S).findall(bookurl_text)==[]:
+                    shudan.append(re.compile(pattern_description[j],re.S).search(bookurl_text).group(1))
+                else:
+                    shudan.append(re.compile(pattern_description[j+1],re.S).search(bookurl_text).group(1))
+
+            shudan.append(i[0])
+            real_shudan.append(tuple(shudan))
+            self.book_jindu(len(real_shudan),info_time)
+            time.sleep(random.uniform(1,2))
+        
+        print("\n---------小说书单信息爬取结束---------\n")
+        return real_shudan
+    
+    def save_info(self,real_shudan):
+        with open(r'F:\sheng\file\python_train\douban\shizhan3.csv','w',newline='',encoding='utf-8')as p:
+            writer = csv.writer(p)
+            writer.writerow(self.names)
+            writer.writerows(real_shudan)
+        print("\n-------小说书单信息储存结束-------\n")
+    
+    def main(self):
+        book_url = self.get_url()
+        real_shudan = self.book_info(book_url)
+        self.save_info(real_shudan)
+        over = time.perf_counter() - self.start
+        over_min = int(over / 60)
+        over_s = int(over - (over_min * 60))
+        print("\n爬虫累计耗费时间：{}min{}s\n\n--------------爬虫结束--------------"
+              .format(over_min,over_s))
+
+if __name__ == '__main__':
+    Pacong = Pacong()
+    Pacong.main()
