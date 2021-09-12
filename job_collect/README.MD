@@ -21,11 +21,12 @@
 2.css选择器可以替代xpath<br>
 3.可以用数据库储存和调用<br>
 4.可以用scrapy<br>
-5.也可以尝试用抓包工具<br>
+5.可以尝试用抓包工具<br>
 
 流程
 -
-1.直接生成2000页前程无忧岗位列表<br>
-2.按照2000个链接的列表，遍历逐个爬取其中的内容，涉及内容有：<br>
+1.生成2000页前程无忧岗位列表<br>
+2.按照2000个链接的列表，用selenium逐个遍历爬取其中element的内容，涉及内容有：<br>
 "jobhref","job","jobtime","salary","demand","benfit","company","companyherf","companyscale","companyindustry"<br>
-3.将全部爬取的内容储存至xlsx文件<br>
+3.引入异常处理，比如超时，以及页面内容空白的处理，引入多个线程爬取
+4.将全部爬取的内容储存至xlsx文件<br>
